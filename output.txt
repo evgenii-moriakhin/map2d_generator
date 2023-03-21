@@ -1,0 +1,756 @@
+*cell.py*
+import dataclasses
+
+
+@dataclasses.dataclass
+class Cell:
+    x: int
+    y: int
+
+    def __iter__(self):
+        return iter((self.x, self.y))
+
+    def __hash__(self):
+        return hash((self.x, self.y))
+
+__________
+
+*elements/connectable/abstract/aconnectable_element.py*
+from abc import ABC, abstractmethod
+from typing import TypeVar, Generic
+
+from elements.placable.abstract.iplacable_element import IPlacableElement
+
+TPlacableElement1 = TypeVar("TPlacableElement1", bound=IPlacableElement)
+TPlacableElement2 = TypeVar("TPlacableElement2", bound=IPlacableElement)
+
+
+class AConnectableElement(ABC, Generic[TPlacableElement1, TPlacableElement2]):
+    def __init__(self, element1: TPlacableElement1, element2: TPlacableElement2):
+        self.element1 = element1
+        self.element2 = element2
+
+    @property
+    @abstractmethod
+    def center1(self):
+        pass
+
+    @property
+    @abstractmethod
+    def center2(self):
+        pass
+
+__________
+
+*elements/connectable/abstract/tconnectable_element.py*
+from typing import TypeVar
+
+from elements.connectable.abstract.aconnectable_element import AConnectableElement
+
+TConnectableElement = TypeVar("TConnectableElement", bound=AConnectableElement)
+
+__________
+
+*elements/connectable/abstract/__init__.py*
+
+__________
+
+*elements/connectable/concrete/connector.py*
+from elements.connectable.abstract.aconnectable_element import AConnectableElement
+
+from elements.placable.concrete.room import Room
+
+
+class RoomRoomConnector(AConnectableElement[Room, Room]):
+    @property
+    def center1(self):
+        return self.element1.center
+
+    @property
+    def center2(self):
+        return self.element2.center
+
+__________
+
+*elements/connectable/concrete/__init__.py*
+
+__________
+
+*elements/connectable/fabrics/aconnectable_fabric.py*
+from abc import abstractmethod, ABC
+from typing import Generic
+
+from elements.connectable.abstract.aconnectable_element import TPlacableElement2, TPlacableElement1
+from elements.connectable.abstract.tconnectable_element import TConnectableElement
+
+
+class AConnectableFabric(ABC, Generic[TConnectableElement, TPlacableElement1, TPlacableElement2]):
+    def __init__(self, element1: TPlacableElement1, element2: TPlacableElement2):
+        self._placable_element1 = element1
+        self._placable_element2 = element2
+
+    @abstractmethod
+    def create_connectable_element(self) -> TConnectableElement:
+        """fabric method"""
+        pass
+
+__________
+
+*elements/connectable/fabrics/placable_placable_connector_fabric.py*
+from elements.connectable.concrete.connector import RoomRoomConnector
+from elements.connectable.fabrics.aconnectable_fabric import AConnectableFabric
+
+
+class RoomRoomConnectorFabric(AConnectableFabric[RoomRoomConnector]):
+    def create_connectable_element(self) -> RoomRoomConnector:
+        return RoomRoomConnector(self._placable_element1, self._placable_element2)
+
+__________
+
+*elements/connectable/fabrics/room_room_connector_fabric.py*
+from elements.connectable.concrete.connector import RoomRoomConnector
+from elements.connectable.fabrics.aconnectable_fabric import AConnectableFabric
+from elements.placable.concrete.room import Room
+
+
+class RoomRoomConnectorFabric(AConnectableFabric[RoomRoomConnector, Room, Room]):
+    def create_connectable_element(self) -> RoomRoomConnector:
+        return RoomRoomConnector(self._placable_element1, self._placable_element2)
+
+__________
+
+*elements/connectable/fabrics/__init__.py*
+
+__________
+
+*elements/connectable/__init__.py*
+
+__________
+
+*elements/placable/abstract/aplacable_element.py*
+from abc import abstractmethod
+from functools import cached_property
+from typing import Optional
+
+from elements.placable.abstract.iplacable_element import IPlacableElement
+from cell import Cell
+from elements.tiles.atile import ATile
+
+
+class APlacableElement(IPlacableElement):
+    _cells: dict[Cell, ATile]
+    _width: Optional[int]
+    _height: Optional[int]
+
+    def __init__(self):
+        self._cells = dict()
+
+    @property
+    def cells(self):
+        return self._cells
+
+    def add_cell(self, cell, tile=None):
+        self._cells[cell] = self.default_tile if not tile else tile
+
+    @property
+    def width(self):
+        return self._width
+
+    @width.setter
+    def width(self, value):
+        self._width = value
+
+    @property
+    def height(self):
+        return self._height
+
+    @height.setter
+    def height(self, value):
+        self._height = value
+
+    @cached_property
+    @abstractmethod
+    def center(self):
+        pass
+
+__________
+
+*elements/placable/abstract/iplacable_element.py*
+from abc import ABC, abstractmethod
+from functools import cached_property
+
+
+class IPlacableElement(ABC):
+    @property
+    @abstractmethod
+    def cells(self):
+        pass
+
+    @abstractmethod
+    def add_cell(self, cell, tile=None):
+        pass
+
+    @property
+    @abstractmethod
+    def width(self):
+        pass
+
+    @width.setter
+    @abstractmethod
+    def width(self, value):
+        pass
+
+    @property
+    @abstractmethod
+    def height(self):
+        pass
+
+    @height.setter
+    @abstractmethod
+    def height(self, value):
+        pass
+
+    @cached_property
+    @abstractmethod
+    def center(self):
+        pass
+
+    @property
+    @abstractmethod
+    def default_tile(self):
+        pass
+
+__________
+
+*elements/placable/abstract/tplacable_element.py*
+from typing import TypeVar
+
+from elements.placable.abstract.iplacable_element import IPlacableElement
+
+TPlacableElement = TypeVar("TPlacableElement", bound=IPlacableElement)
+
+__________
+
+*elements/placable/abstract/__init__.py*
+
+__________
+
+*elements/placable/concrete/corridor.py*
+import random
+from functools import cached_property
+
+from elements.placable.abstract.aplacable_element import APlacableElement
+from elements.tiles.room_tile import CorridorTile
+
+
+class Corridor(APlacableElement):
+    @property
+    def default_tile(self):
+        return CorridorTile()
+
+    @cached_property
+    def center(self):
+        return random.choice(tuple(self.cells))
+
+__________
+
+*elements/placable/concrete/map2d.py*
+import random
+
+from elements.placable.abstract.aplacable_element import APlacableElement
+from elements.tiles.empty_tile import EmptyTile
+
+
+class Map2D(APlacableElement):
+    def __init__(self, width, height):
+        super().__init__()
+        self.width = width
+        self.height = height
+
+    def center(self):
+        return random.choice(tuple(self.cells))
+
+    @property
+    def default_tile(self):
+        return EmptyTile()
+
+__________
+
+*elements/placable/concrete/room.py*
+from functools import cached_property
+import random
+
+from elements.placable.abstract.aplacable_element import APlacableElement
+from elements.tiles.corridor_tile import RoomTile
+
+
+class Room(APlacableElement):
+    def __init__(self, min_size=5, max_size=10):
+        super().__init__()
+        self.min_size = min_size
+        self.max_size = max_size
+
+    @property
+    def default_tile(self):
+        return RoomTile()
+
+    @cached_property
+    def center(self):
+        return random.choice(tuple(self.cells))
+
+__________
+
+*elements/placable/concrete/__init__.py*
+
+__________
+
+*elements/placable/facrics/aplacable_fabric.py*
+from abc import abstractmethod, ABC
+from typing import Generic
+
+from elements.placable.abstract.tplacable_element import TPlacableElement
+
+
+class APlacableFabric(ABC, Generic[TPlacableElement]):
+    @abstractmethod
+    def create_placable_element(self) -> TPlacableElement:
+        """fabric method"""
+        pass
+
+__________
+
+*elements/placable/facrics/corridor_fabric.py*
+from elements.placable.concrete.corridor import Corridor
+from elements.placable.facrics.aplacable_fabric import APlacableFabric
+
+
+class CorridorFabric(APlacableFabric[Corridor]):
+    def create_placable_element(self) -> Corridor:
+        return Corridor()
+
+__________
+
+*elements/placable/facrics/room_fabric.py*
+import random
+
+from elements.placable.concrete.room import Room
+from elements.placable.facrics.aplacable_fabric import APlacableFabric
+
+
+class RoomFabric(APlacableFabric[Room]):
+    def __init__(self, min_size=5, max_size=10):
+        self.min_size = min_size
+        self.max_size = max_size
+
+    def create_placable_element(self) -> Room:
+        room = Room(self.min_size, self.max_size)
+        room.width = random.randint(self.min_size, self.max_size)
+        room.height = random.randint(self.min_size, self.max_size)
+        return room
+
+__________
+
+*elements/placable/facrics/__init__.py*
+
+__________
+
+*elements/placable/__init__.py*
+
+__________
+
+*elements/tiles/atile.py*
+from abc import ABC, abstractmethod
+
+
+class ATile(ABC):
+    @property
+    @abstractmethod
+    def symbol(self):
+        pass
+
+__________
+
+*elements/tiles/corridor_tile.py*
+from elements.tiles.atile import ATile
+
+
+class RoomTile(ATile):
+    @property
+    def symbol(self):
+        return " "
+
+__________
+
+*elements/tiles/empty_tile.py*
+from elements.tiles.atile import ATile
+
+
+class EmptyTile(ATile):
+    @property
+    def symbol(self):
+        return "#"
+
+__________
+
+*elements/tiles/room_tile.py*
+from elements.tiles.atile import ATile
+
+
+class CorridorTile(ATile):
+    @property
+    def symbol(self):
+        return " "
+
+__________
+
+*elements/tiles/__init__.py*
+
+__________
+
+*elements/__init__.py*
+
+__________
+
+*main.py*
+from map_generator import MapGenerator
+from vizualizer import visualize_map
+
+
+def main():
+    map_width = 50
+    map_height = 50
+    room_count = 10
+
+    map_generator = MapGenerator(map_width, map_height, room_count)
+    map_ = map_generator.generate_map()
+
+    visualize_map(map_)
+
+
+if __name__ == "__main__":
+    main()
+
+__________
+
+*map_generator.py*
+from elements.connectable.concrete.connector import RoomRoomConnector
+from elements.placable.concrete.map2d import Map2D
+from elements.placable.facrics.room_fabric import RoomFabric
+from strategies.connectable.concrete.connector_strategy import ConnectorPlacementStrategy
+from strategies.placable.concrete.map2d_strategy import Map2DPlacementStrategy
+from strategies.placable.concrete.room_strategy import RoomPlacementStrategy
+
+
+class MapGenerator:
+    def __init__(self, width, height, room_count=5):
+        self.width = width
+        self.height = height
+        self.room_count = room_count
+
+    def generate_map(self):
+        _map = Map2D(self.width, self.height)
+        map2d_placement_strategy = Map2DPlacementStrategy()
+        map2d_placement_strategy.place(_map, _map)
+
+        room_config = RoomFabric()
+        room_placement_strategy = RoomPlacementStrategy()
+        connector_placement_strategy = ConnectorPlacementStrategy()
+
+        rooms = [room_config.create_placable_element() for _ in range(self.room_count)]
+
+        for room in rooms:
+            room_placement_strategy.place(_map, room)
+
+        for i in range(1, len(rooms)):
+            connector = RoomRoomConnector(rooms[i - 1], rooms[i])
+            connector_placement_strategy.place(_map, connector)
+
+        return _map
+
+__________
+
+*output.txt*
+
+__________
+
+*Pipfile*
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+mypy = "*"
+
+[requires]
+python_version = "3.11"
+
+__________
+
+*Pipfile.lock*
+{
+    "_meta": {
+        "hash": {
+            "sha256": "036d643e208737c97b0c4a786d3b0f7a9d4f524fc5ce23ad4849980ff7c3e8ea"
+        },
+        "pipfile-spec": 6,
+        "requires": {
+            "python_version": "3.11"
+        },
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {},
+    "develop": {
+        "mypy": {
+            "hashes": [
+                "sha256:0a28a76785bf57655a8ea5eb0540a15b0e781c807b5aa798bd463779988fa1d5",
+                "sha256:19ba15f9627a5723e522d007fe708007bae52b93faab00f95d72f03e1afa9598",
+                "sha256:21b437be1c02712a605591e1ed1d858aba681757a1e55fe678a15c2244cd68a5",
+                "sha256:26cdd6a22b9b40b2fd71881a8a4f34b4d7914c679f154f43385ca878a8297389",
+                "sha256:2888ce4fe5aae5a673386fa232473014056967f3904f5abfcf6367b5af1f612a",
+                "sha256:2b0c373d071593deefbcdd87ec8db91ea13bd8f1328d44947e88beae21e8d5e9",
+                "sha256:315ac73cc1cce4771c27d426b7ea558fb4e2836f89cb0296cbe056894e3a1f78",
+                "sha256:39c7119335be05630611ee798cc982623b9e8f0cff04a0b48dfc26100e0b97af",
+                "sha256:4b398d8b1f4fba0e3c6463e02f8ad3346f71956b92287af22c9b12c3ec965a9f",
+                "sha256:4e4e8b362cdf99ba00c2b218036002bdcdf1e0de085cdb296a49df03fb31dfc4",
+                "sha256:59bbd71e5c58eed2e992ce6523180e03c221dcd92b52f0e792f291d67b15a71c",
+                "sha256:5b5f81b40d94c785f288948c16e1f2da37203c6006546c5d947aab6f90aefef2",
+                "sha256:5cb14ff9919b7df3538590fc4d4c49a0f84392237cbf5f7a816b4161c061829e",
+                "sha256:61bf08362e93b6b12fad3eab68c4ea903a077b87c90ac06c11e3d7a09b56b9c1",
+                "sha256:64cc3afb3e9e71a79d06e3ed24bb508a6d66f782aff7e56f628bf35ba2e0ba51",
+                "sha256:69b35d1dcb5707382810765ed34da9db47e7f95b3528334a3c999b0c90fe523f",
+                "sha256:9401e33814cec6aec8c03a9548e9385e0e228fc1b8b0a37b9ea21038e64cdd8a",
+                "sha256:a380c041db500e1410bb5b16b3c1c35e61e773a5c3517926b81dfdab7582be54",
+                "sha256:ae9ceae0f5b9059f33dbc62dea087e942c0ccab4b7a003719cb70f9b8abfa32f",
+                "sha256:b7c7b708fe9a871a96626d61912e3f4ddd365bf7f39128362bc50cbd74a634d5",
+                "sha256:c1c10fa12df1232c936830839e2e935d090fc9ee315744ac33b8a32216b93707",
+                "sha256:ce61663faf7a8e5ec6f456857bfbcec2901fbdb3ad958b778403f63b9e606a1b",
+                "sha256:d64c28e03ce40d5303450f547e07418c64c241669ab20610f273c9e6290b4b0b",
+                "sha256:d809f88734f44a0d44959d795b1e6f64b2bbe0ea4d9cc4776aa588bb4229fc1c",
+                "sha256:dbb19c9f662e41e474e0cff502b7064a7edc6764f5262b6cd91d698163196799",
+                "sha256:ef6a01e563ec6a4940784c574d33f6ac1943864634517984471642908b30b6f7"
+            ],
+            "index": "pypi",
+            "version": "==1.1.1"
+        },
+        "mypy-extensions": {
+            "hashes": [
+                "sha256:4392f6c0eb8a5668a69e23d168ffa70f0be9ccfd32b5cc2d26a34ae5b844552d",
+                "sha256:75dbf8955dc00442a438fc4d0666508a9a97b6bd41aa2f0ffe9d2f2725af0782"
+            ],
+            "markers": "python_version >= '3.5'",
+            "version": "==1.0.0"
+        },
+        "typing-extensions": {
+            "hashes": [
+                "sha256:5cb5f4a79139d699607b3ef622a1dedafa84e115ab0024e0d9c044a9479ca7cb",
+                "sha256:fb33085c39dd998ac16d1431ebc293a8b3eedd00fd4a32de0ff79002c19511b4"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==4.5.0"
+        }
+    }
+}
+
+__________
+
+*strategies/connectable/abstract/iconnectable_strategy.py*
+from abc import ABC, abstractmethod
+from typing import Generic
+
+from elements.connectable.abstract.tconnectable_element import TConnectableElement
+from elements.placable.abstract.iplacable_element import IPlacableElement
+
+
+class IConnectableStrategy(ABC, Generic[TConnectableElement]):
+    @abstractmethod
+    def place(self, map_: IPlacableElement, element: TConnectableElement):
+        pass
+
+__________
+
+*strategies/connectable/abstract/__init__.py*
+
+__________
+
+*strategies/connectable/concrete/connector_strategy.py*
+from cell import Cell
+from elements.connectable.concrete.connector import RoomRoomConnector
+from elements.placable.abstract.iplacable_element import IPlacableElement
+from elements.placable.facrics.corridor_fabric import CorridorFabric
+from strategies.placable.concrete.corridor_strategy import CorridorPlacementStrategy
+from strategies.connectable.abstract.iconnectable_strategy import IConnectableStrategy
+
+
+class ConnectorPlacementStrategy(IConnectableStrategy[RoomRoomConnector]):
+    def place(self, map_: IPlacableElement, element: RoomRoomConnector):
+        x1, y1 = element.center1
+        x2, y2 = element.center2
+
+        corridor = CorridorFabric().create_placable_element()
+
+        # Horizontal corridor
+        for x in range(min(x1, x2), max(x1, x2) + 1):
+            corridor.add_cell(Cell(x, y1))
+        # Vertical corridor
+        for y in range(min(y1, y2), max(y1, y2) + 1):
+            corridor.add_cell(Cell(x2, y))
+
+        CorridorPlacementStrategy().place(map_, corridor)
+
+__________
+
+*strategies/connectable/concrete/__init__.py*
+
+__________
+
+*strategies/connectable/__init__.py*
+
+__________
+
+*strategies/placable/abstract/iplacement_strategy.py*
+from abc import ABC, abstractmethod
+from typing import Generic
+
+from elements.placable.abstract.iplacable_element import IPlacableElement
+from elements.placable.abstract.tplacable_element import TPlacableElement
+
+
+class IPlacementStrategy(ABC, Generic[TPlacableElement]):
+    @abstractmethod
+    def place(self, _map: IPlacableElement, element: TPlacableElement):
+        pass
+
+__________
+
+*strategies/placable/abstract/__init__.py*
+
+__________
+
+*strategies/placable/concrete/corridor_strategy.py*
+from elements.placable.abstract.iplacable_element import IPlacableElement
+from elements.placable.concrete.corridor import Corridor
+from strategies.placable.abstract.iplacement_strategy import IPlacementStrategy
+
+
+class CorridorPlacementStrategy(IPlacementStrategy[Corridor]):
+    def place(self, map_: IPlacableElement, element: Corridor):
+        for cell in element.cells:
+            if 0 <= cell.y < map_.height and 0 <= cell.x < map_.width:
+                map_.add_cell(cell, element.default_tile)
+
+__________
+
+*strategies/placable/concrete/map2d_strategy.py*
+from cell import Cell
+from elements.placable.abstract.iplacable_element import IPlacableElement
+from elements.placable.concrete.map2d import Map2D
+from strategies.placable.abstract.iplacement_strategy import IPlacementStrategy
+
+
+class Map2DPlacementStrategy(IPlacementStrategy[Map2D]):
+    def place(self, map_: IPlacableElement, element: Map2D):
+        for x in range(element.width):
+            for y in range(element.height):
+                map_.add_cell(Cell(x, y), element.default_tile)
+                element.add_cell(Cell(x, y))
+
+__________
+
+*strategies/placable/concrete/room_strategy.py*
+import random
+
+from cell import Cell
+from elements.placable.abstract.iplacable_element import IPlacableElement
+from elements.placable.concrete.room import Room
+from strategies.placable.abstract.iplacement_strategy import IPlacementStrategy
+
+
+class RoomPlacementStrategy(IPlacementStrategy[Room]):
+    def place(self, map_: IPlacableElement, element: Room):
+        width, height = element.width, element.height
+        start_cell = Cell(random.randint(0, map_.width - width - 1), random.randint(0, map_.height - height - 1))
+
+        for i in range(start_cell.y, start_cell.y + height):
+            for j in range(start_cell.x, start_cell.x + width):
+                if 0 <= i < map_.height and 0 <= j < map_.width:
+                    place_room_cell_to = Cell(j, i)
+                    element.add_cell(place_room_cell_to)
+                    map_.add_cell(place_room_cell_to, element.default_tile)
+
+__________
+
+*strategies/placable/concrete/__init__.py*
+
+__________
+
+*strategies/placable/__init__.py*
+
+__________
+
+*strategies/__init__.py*
+
+__________
+
+*util_scripts/dump_files.sh*
+#!/bin/bash
+
+# for ChatGTP help purposes
+
+output_file="output.txt"
+
+# Recreate the output file
+rm -f "$output_file"
+touch "$output_file"
+
+# Function to process a single file
+process_file() {
+  local file="$1"
+  echo "*${file#./}*" >> "$output_file"
+  cat "$file" >> "$output_file"
+  echo -e "\n__________\n" >> "$output_file"
+}
+
+# Exclude unnecessary file extensions
+exclude_exts=(-name '*.pyc' -o -name '*.pyo' -o -name '*.log')
+
+# If no arguments are provided, find all files except those starting with a dot and excluded file extensions
+if [ $# -eq 0 ]; then
+  find . -type f -not -path '*/\.*' \( "${exclude_exts[@]}" -prune -o -print0 \) | while IFS= read -r -d '' file; do
+    process_file "$file"
+  done
+else
+  # Process specified files and directories
+  for path in "$@"; do
+    if [[ -d "$path" ]]; then
+      find "$path" -type f -not -path '*/\.*' \( "${exclude_exts[@]}" -prune -o -print0 \) | while IFS= read -r -d '' file; do
+        process_file "$file"
+      done
+    elif [[ -f "$path" && "${path##*/}" != .* && ! "${path##*.}" =~ ^(pyc|pyo|log)$ ]]; then
+      process_file "$path"
+    fi
+  done
+fi
+
+__________
+
+*vizualizer.py*
+from cell import Cell
+
+
+def visualize_map(map):
+    for x in range(map.width):
+        for y in range(map.height):
+            print(map.cells[Cell(x, y)].symbol, end='')
+        print()
+
+__________
+

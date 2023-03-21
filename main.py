@@ -1,16 +1,15 @@
-from dungeon_generator import DungeonGenerator
-from vizualizer import visualize_dungeon
+from map_generator import MapGenerator
+from vizualizer import visualize_map
 
 
-def main():
-    dungeon_width = 50
-    dungeon_height = 50
-    room_count = 10
+def main() -> None:
+    map_size = 100
+    room_count = 2
 
-    dungeon_generator = DungeonGenerator(dungeon_width, dungeon_height, room_count)
-    dungeon_map = dungeon_generator.generate_dungeon()
+    map_generator = MapGenerator(map_size, room_count)
+    map_ = map_generator.generate_map()
 
-    visualize_dungeon(dungeon_map)
+    visualize_map(map_)
 
 
 if __name__ == "__main__":
